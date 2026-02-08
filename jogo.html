@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulador de Moto - Vigilante do Grau</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Arial Black', sans-serif;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .hud-top {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .hud-bottom {
+            padding: 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+        }
+        .painel {
+            background: rgba(0,0,0,0.85);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 3px solid #ffcc00;
+            box-shadow: 0 0 20px rgba(255,204,0,0.3);
+        }
+        .velocimetro {
+            text-align: center;
+            min-width: 150px;
+        }
+        .velocidade {
+            font-size: 48px;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        .rpm-meter {
+            text-align: center;
+            min-width: 180px;
+        }
+        .rpm-bar-container {
+            width: 100%;
+            height: 30px;
+            background: #000;
+            border: 2px solid #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+        .rpm-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, yellow, orange, red);
+            width: 0%;
+            transition: width 0.1s;
+        }
+        .rpm-text {
+            font-size: 24px;
+            color: #fff;
+        }
+        .marcha-display {
+            text-align: center;
+            min-width: 120px;
+        }
+        .marcha-numero {
+            font-size: 64px;
+            color: #00ccff;
+            text-shadow: 0 0 15px #00ccff;
+        }
+        .info-box {
+            font-size: 18px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 2px solid #ffcc00;
+        }
+        .grau-indicator {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #ff4444;
+            color: #ff4444;
+            font-size: 24px;
+            display: none;
+            animation: pulse 0.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .corte-giro {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,0,0,0.9);
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: 3px solid #fff;
+            color: #fff;
+            font-size: 32px;
+            display: none;
+            animation: shake 0.1s infinite;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            25% { transform: translate(-48%, -50%) rotate(-2deg); }
+            75% { transform: translate(-52%, -50%) rotate(2deg); }
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            display: none;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ffcc00;
+            pointer-events: auto;
+            z-index: 20;
+            box-shadow: 0 0 30px rgba(255,204,0,0.5);
+        }
+        button {
+            background: linear-gradient(180deg, #ffdd00, #ffaa00);
+            border: none;
+            padding: 15px 40px;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 7px 20px rgba(255,204,0,0.5);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .tutorial {
+            position: absolute;
+            bottom: 25%;
+            width: 100%;
+            text-align: center;
+            color: white;
+            animation: piscar 1.5s infinite;
+            font-size: 18px;
+            text-shadow: 2px 2px 5px black;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        @keyframes piscar {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="info-box">
+                🏍️ DISTÂNCIA: <span id="placar">0</span>m
+            </div>
+            <div class="info-box">
+                ⛽ MODO: <span id="modo-display">NORMAL</span>
+            </div>
+        </div>
+
+        <div class="grau-indicator" id="grau-warning">
+            ⚠️ GRAU ATIVADO!
+        </div>
+
+        <div class="corte-giro" id="corte-warning">
+            ⚠️ CORTANDO GIRO!
+        </div>
+
+        <div id="tutorial-txt" class="tutorial">
+            🎮 <strong>CONTROLES</strong> 🎮<br>
+            ⬆️ ACELERAR | ⬇️ FREIAR | ⬅️➡️ DIREÇÃO<br>
+            ESPAÇO = EMPINAR (GRAU) | SHIFT = SUBIR MARCHA | CTRL = DESCER MARCHA<br>
+            <small>Mobile: Toque nos botões na tela</small>
+        </div>
+
+        <div class="hud-bottom">
+            <div class="painel velocimetro">
+                <div style="font-size: 14px; margin-bottom: 5px;">VELOCIDADE</div>
+                <div class="velocidade"><span id="velocidade">0</span></div>
+                <div style="font-size: 16px;">km/h</div>
+            </div>
+
+            <div class="painel marcha-display">
+                <div style="font-size: 14px; margin-bottom: 5px;">MARCHA</div>
+                <div class="marcha-numero" id="marcha">N</div>
+            </div>
+
+            <div class="painel rpm-meter">
+                <div style="font-size: 14px; margin-bottom: 5px;">RPM x1000</div>
+                <div class="rpm-bar-container">
+                    <div class="rpm-bar" id="rpm-bar"></div>
+                </div>
+                <div class="rpm-text"><span id="rpm-display">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h1 style="margin:0; color: #ff4444; font-size: 48px;">💥 GAME OVER!</h1>
+        <p style="font-size: 24px;">Distância: <span id="final-score">0</span>m</p>
+        <p style="font-size: 20px;">Velocidade Máxima: <span id="max-speed">0</span> km/h</p>
+        <button onclick="reiniciarJogo()">🔄 Jogar Novamente</button>
+    </div>
+
+    <!-- Botões Mobile -->
+    <div style="position: absolute; bottom: 150px; right: 20px; pointer-events: auto; display: none;" id="mobile-controls">
+        <button style="display: block; margin: 5px; width: 60px; height: 60px; border-radius: 50%;" onmousedown="setaCima=true" onmouseup="setaCima=false" ontouchstart="setaCima=true" ontouchend="setaCima=false">⬆️</button>
+        <div style="display: flex; gap: 5px;">
+            <button style="width: 60px; height: 60px; border-radius: 50%;" onmousedown="setaEsquerda=true" onmouseup="setaEsquerda=false" ontouchstart="setaEsquerda=true" ontouchend="setaEsquerda=false">⬅️</button>
+            <button style="width: 60px; height: 60px; border-radius: 50%;" onmousedown="setaDireita=true" onmouseup="setaDireita=false" ontouchstart="setaDireita=true" ontouchend="setaDireita=false">➡️</button>
+        </div>
+        <button style="display: block; margin: 5px; width: 60px; height: 60px; border-radius: 50%;" onmousedown="setaBaixo=true" onmouseup="setaBaixo=false" ontouchstart="setaBaixo=true" ontouchend="setaBaixo=false">⬇️</button>
+    </div>
+
+    <canvas id="jogoCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("jogoCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Detecta mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        document.getElementById('mobile-controls').style.display = 'block';
+    }
+
+    // === SISTEMA DE SOM ===
+   // === SISTEMA DE SOM (ATUALIZADO VIGILANTE) ===
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    // Variáveis do Motor
+    let motorOsc = null;      // O som agudo (rasgado)
+    let motorSubOsc = null;   // O som grave (peso)
+    let motorGain = null;
+    let audioIniciado = false;
+
+    // Função para desbloquear o áudio do navegador no primeiro clique
+    function desbloquearAudio() {
+        if (!audioIniciado) {
+            audioContext.resume().then(() => {
+                audioIniciado = true;
+                iniciarSomMotor();
+            });
+        }
+    }
+
+    // Adiciona o desbloqueio a qualquer interação
+    window.addEventListener('click', desbloquearAudio);
+    window.addEventListener('keydown', desbloquearAudio);
+    window.addEventListener('touchstart', desbloquearAudio);
+
+    function iniciarSomMotor() {
+        if (motorOsc) return; // Já está rodando
+
+        // 1. Oscilador Principal (Dente de Serra - Som rasgado)
+        motorOsc = audioContext.createOscillator();
+        motorOsc.type = 'sawtooth';
+        
+        // 2. Sub-Oscilador (Quadrada - Som grave/grave)
+        motorSubOsc = audioContext.createOscillator();
+        motorSubOsc.type = 'square';
+
+        // Controle de Volume Mestre
+        motorGain = audioContext.createGain();
+        motorGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+
+        // Conexões
+        motorOsc.connect(motorGain);
+        motorSubOsc.connect(motorGain);
+        motorGain.connect(audioContext.destination);
+
+        // Inicia
+        motorOsc.start();
+        motorSubOsc.start();
+    }
+
+    function atualizarSomMotor(rpm) {
+        if (!audioIniciado || !motorOsc) return;
+
+        // Frequência baseada no RPM (Afinado para parecer 160cc)
+        // RPM 800 (lenta) = 60Hz
+        // RPM 10000 (corte) = 400Hz
+        const freq = 60 + (rpm / 10000 * 340);
+        
+        // Atualiza frequências imediatamente para resposta rápida
+        motorOsc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        
+        // O sub-oscilador toca uma oitava abaixo (metade da frequência) para dar "peso"
+        motorSubOsc.frequency.setValueAtTime(freq / 2, audioContext.currentTime);
+
+        // Variação de volume (Motor grita mais alto em alta rotação)
+        // Mas se estiver cortando giro, o volume oscila loucamente
+        if (rpm >= moto.rpmCorte - 100) {
+            // EFEITO CORTE DE GIRO (Randômico)
+            if (Math.random() > 0.5) {
+                motorGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+            } else {
+                motorGain.gain.setValueAtTime(0.0, audioContext.currentTime); // Silêncio breve
+            }
+        } else {
+            // Volume normal crescendo com RPM
+            const vol = 0.1 + (rpm / 10000 * 0.1);
+            motorGain.gain.setValueAtTime(vol, audioContext.currentTime);
+        }
+    }
+
+    function somTrocaMarcha() {
+        if (!audioIniciado) return;
+        
+        // Som de "Tsss" (Ar comprimido/Engrenagem)
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.type = 'triangle';
+        // Pitch drop rápido
+        osc.frequency.setValueAtTime(300, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.1);
+        
+        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start();
+        osc.stop(audioContext.currentTime + 0.1);
+    }
+    
+    // Removemos a função somCorteGiro separada, pois agora ela faz parte do atualizarSomMotor
+    function somCorteGiro() {
+        // Vazio, controlado no loop principal agora
+    }
+
+
+    // === VARIÁVEIS DO JOGO ===
+    let jogoRodando = false;
+    let gameOverState = false;
+    let frame = 0;
+    let distancia = 0;
+    
+    // Controles
+    let setaCima = false;
+    let setaBaixo = false;
+    let setaEsquerda = false;
+    let setaDireita = false;
+    let espacoPressionado = false;
+    let shiftPressionado = false;
+    let ctrlPressionado = false;
+
+    // === MOTO COM SISTEMA COMPLETO ===
+    const moto = {
+        x: 150,
+        y: 0,
+        raioRoda: 28,
+        
+        // Física de movimento
+        velocidade: 0,
+        aceleracao: 0,
+        velocidadeMaxPorMarcha: [0, 40, 70, 100, 130, 160, 200],
+        
+        // Sistema de marchas e motor
+        marcha: 0, // 0 = Neutro, 1-6 = marchas
+        rpm: 800, // RPM do motor
+        rpmMinima: 800,
+        rpmMaxima: 10000,
+        rpmCorte: 9500,
+        embreagem: true,
+        
+        // Grau
+        angulo: 0,
+        velocidadeAngular: 0,
+        emGrau: false,
+        
+        // Posição lateral
+        posX: 300,
+        direcao: 0,
+        
+        // Visual
+        cor: "#CC0000",
+        corSecundaria: "#800000",
+        faíscas: [],
+        yOffset: 0,
+        vy: 0,
+        rotacaoRoda: 0,
+        
+        // Stats
+        velocidadeMaxima: 0
+    };
+
+    // Relações de marcha (quanto cada marcha multiplica o RPM em velocidade)
+    const relacaoMarchas = [0, 0.004, 0.007, 0.010, 0.013, 0.016, 0.020];
+
+    // Cenário
+    const predios = [];
+    const obstaculos = [];
+    const nuvens = [];
+    const estrelas = [];
+    const faixasRua = [];
+
+    // === INICIALIZAÇÃO ===
+    
+    function inicializarCenario() {
+        estrelas.length = 0;
+        for(let i = 0; i < 100; i++) {
+            estrelas.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * (canvas.height * 0.6),
+                tamanho: Math.random() * 2,
+                brilho: Math.random()
+            });
+        }
+        
+        nuvens.length = 0;
+        for(let i = 0; i < 5; i++) {
+            nuvens.push({
+                x: Math.random() * canvas.width,
+                y: 50 + Math.random() * 150,
+                largura: 80 + Math.random() * 60,
+                velocidade: 0.3 + Math.random() * 0.5
+            });
+        }
+        
+        predios.length = 0;
+        for(let i = 0; i < canvas.width + 400; i += 120) {
+            gerarPredio(i);
+        }
+    }
+
+    function gerarPredio(xOffset) {
+        predios.push({
+            x: xOffset,
+            w: 70 + Math.random() * 80,
+            h: 120 + Math.random() * 250,
+            janelas: Math.floor(Math.random() * 3) + 2
+        });
+    }
+
+    // === FÍSICA DA MOTO ===
+
+    function atualizarMotor() {
+        // Acelerar
+        if (setaCima && moto.marcha > 0) {
+            moto.rpm += 80;
+            moto.embreagem = false;
+        } else if (moto.marcha === 0) {
+            // Neutro - só aumenta RPM sem acelerar
+            if (setaCima) {
+                moto.rpm += 100;
+            }
+        }
+        
+        // Freio
+        if (setaBaixo) {
+            moto.velocidade *= 0.95;
+            moto.rpm -= 30;
+        }
+        
+        // RPM naturalmente tende à mínima quando não acelera
+        if (!setaCima) {
+            if (moto.marcha > 0) {
+                // RPM baseado na velocidade e marcha
+                let rpmAlvo = moto.rpmMinima + (moto.velocidade / relacaoMarchas[moto.marcha]);
+                moto.rpm += (rpmAlvo - moto.rpm) * 0.05;
+            } else {
+                // Neutro - volta pra marcha lenta
+                moto.rpm += (moto.rpmMinima - moto.rpm) * 0.1;
+            }
+        }
+        
+        // Limites de RPM
+        if (moto.rpm < moto.rpmMinima) moto.rpm = moto.rpmMinima;
+        if (moto.rpm > moto.rpmMaxima) moto.rpm = moto.rpmMaxima;
+        
+        // CORTE DE GIRO
+        if (moto.rpm >= moto.rpmCorte) {
+            moto.rpm = moto.rpmCorte;
+            if (frame % 5 === 0) {
+                somCorteGiro();
+                document.getElementById('corte-warning').style.display = 'block';
+            }
+        } else {
+            document.getElementById('corte-warning').style.display = 'none';
+        }
+        
+        // Calcular velocidade baseada em RPM e marcha
+        if (moto.marcha > 0 && !moto.embreagem) {
+            let velocidadeAlvo = moto.rpm * relacaoMarchas[moto.marcha];
+            let maxVel = moto.velocidadeMaxPorMarcha[moto.marcha];
+            velocidadeAlvo = Math.min(velocidadeAlvo, maxVel);
+            
+            moto.velocidade += (velocidadeAlvo - moto.velocidade) * 0.02;
+        }
+        
+        // Resistência do ar e atrito
+        moto.velocidade *= 0.998;
+        
+        // Limites
+        if (moto.velocidade < 0) moto.velocidade = 0;
+        if (moto.velocidade > 200) moto.velocidade = 200;
+        
+        // Atualizar máxima
+        if (moto.velocidade > moto.velocidadeMaxima) {
+            moto.velocidadeMaxima = moto.velocidade;
+        }
+    }
+
+    function trocarMarcha(subir) {
+        if (subir && moto.marcha < 6) {
+            moto.marcha++;
+            moto.rpm *= 0.7; // RPM cai ao subir marcha
+            somTrocaMarcha();
+        } else if (!subir && moto.marcha > 0) {
+            moto.marcha--;
+            if (moto.marcha > 0) {
+                moto.rpm *= 1.3; // RPM sobe ao descer marcha
+            }
+            somTrocaMarcha();
+        }
+    }
+
+    function atualizarGrau() {
+        if (espacoPressionado && moto.velocidade > 20) {
+            moto.emGrau = true;
+            moto.velocidadeAngular -= 0.8;
+            document.getElementById('grau-warning').style.display = 'block';
+        } else {
+            moto.emGrau = false;
+            moto.velocidadeAngular += 0.5;
+            document.getElementById('grau-warning').style.display = 'none';
+        }
+        
+        moto.velocidadeAngular *= 0.92;
+        moto.angulo += moto.velocidadeAngular;
+        
+        // Limites
+        if (moto.angulo > 5) {
+            moto.angulo = 5;
+            moto.velocidadeAngular = 0;
+        }
+        
+        if (moto.angulo < -85) {
+            crash("💥 Virou pra trás!");
+        }
+        
+        if (moto.angulo >= 0 && moto.velocidadeAngular > 10) {
+            crash("💥 Bateu a roda da frente!");
+        }
+    }
+
+    function atualizarDirecao() {
+        if (setaEsquerda) {
+            moto.posX -= 3 + (moto.velocidade * 0.05);
+        }
+        if (setaDireita) {
+            moto.posX += 3 + (moto.velocidade * 0.05);
+        }
+        
+        // Limites da pista
+        if (moto.posX < 100) moto.posX = 100;
+        if (moto.posX > canvas.width - 100) moto.posX = canvas.width - 100;
+    }
+
+    // === DESENHO ===
+
+    function desenharCenario() {
+        // Céu
+        let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, "#0a0e27");
+        grad.addColorStop(0.5, "#1a1a3e");
+        grad.addColorStop(1, "#2d2d5a");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Estrelas
+        estrelas.forEach(e => {
+            e.brilho += (Math.random() - 0.5) * 0.1;
+            e.brilho = Math.max(0.3, Math.min(1, e.brilho));
+            ctx.globalAlpha = e.brilho;
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(e.x, e.y, e.tamanho, e.tamanho);
+        });
+        ctx.globalAlpha = 1;
+
+        // Lua
+        let luaGrad = ctx.createRadialGradient(canvas.width - 120, 100, 10, canvas.width - 120, 100, 50);
+        luaGrad.addColorStop(0, "#ffffcc");
+        luaGrad.addColorStop(0.7, "#fff");
+        luaGrad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = luaGrad;
+        ctx.beginPath();
+        ctx.arc(canvas.width - 120, 100, 50, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Nuvens
+        nuvens.forEach(n => {
+            n.x -= n.velocidade * (1 + moto.velocidade * 0.01);
+            if (n.x + n.largura < 0) n.x = canvas.width;
+            
+            ctx.fillStyle = "rgba(255,255,255,0.1)";
+            ctx.beginPath();
+            ctx.ellipse(n.x, n.y, n.largura, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Prédios
+        let velocidadeParallax = moto.velocidade * 0.3;
+        predios.forEach(p => {
+            p.x -= velocidadeParallax;
+            
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.fillRect(p.x + 5, canvas.height - 100 - p.h, p.w, p.h);
+            
+            let predioGrad = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+            predioGrad.addColorStop(0, "#0d0d1a");
+            predioGrad.addColorStop(0.5, "#1a1a2e");
+            predioGrad.addColorStop(1, "#0d0d1a");
+            ctx.fillStyle = predioGrad;
+            ctx.fillRect(p.x, canvas.height - 100 - p.h, p.w, p.h);
+            
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(p.x, canvas.height - 100 - p.h, p.w, p.h);
+            
+            let janelasPorAndar = p.janelas;
+            let andares = Math.floor(p.h / 30);
+            for(let andar = 0; andar < andares; andar++) {
+                for(let j = 0; j < janelasPorAndar; j++) {
+                    if (Math.random() > 0.3) {
+                        let janelaX = p.x + 10 + j * (p.w - 20) / janelasPorAndar;
+                        let janelaY = canvas.height - 100 - p.h + 10 + andar * 30;
+                        
+                        ctx.fillStyle = (frame + andar * 10) % 120 < 60 ? "#ffeeaa" : "#ffdd88";
+                        ctx.fillRect(janelaX, janelaY, 8, 12);
+                        
+                        ctx.fillStyle = "rgba(255,255,200,0.5)";
+                        ctx.fillRect(janelaX, janelaY, 3, 5);
+                    }
+                }
+            }
+        });
+        
+        if (predios[0] && predios[0].x + predios[0].w < 0) {
+            predios.shift();
+            gerarPredio(predios[predios.length - 1].x + 120);
+        }
+
+        // Chão
+        let chaoY = canvas.height - 100;
+        
+        ctx.fillStyle = "#1a1a1a";
+        ctx.fillRect(0, chaoY, canvas.width, 100);
+        
+        for(let i = 0; i < 50; i++) {
+            ctx.fillStyle = `rgba(${30 + Math.random() * 20}, ${30 + Math.random() * 20}, ${30 + Math.random() * 20}, 0.3)`;
+            let x = (Math.random() * canvas.width - moto.velocidade * frame * 0.1) % canvas.width;
+            let y = chaoY + Math.random() * 100;
+            ctx.fillRect(x, y, 2, 2);
+        }
+        
+        ctx.fillStyle = "#2a2a2a";
+        ctx.fillRect(0, chaoY, canvas.width, 8);
+        
+        ctx.fillStyle = "#3a3a3a";
+        ctx.fillRect(0, chaoY + 8, canvas.width, 15);
+        
+        // Faixas
+        ctx.fillStyle = "#FFF";
+        let offset = (distancia * 15) % 120;
+        for (let i = -120; i < canvas.width + 120; i += 120) {
+            ctx.fillRect(i - offset, chaoY + 40, 80, 6);
+        }
+        
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        for (let i = -120; i < canvas.width + 120; i += 120) {
+            ctx.fillRect(i - offset, chaoY + 46, 80, 2);
+        }
+
+        // Lombadas
+        if (Math.random() < 0.002 && obstaculos.length === 0 && distancia > 100) {
+            obstaculos.push({ x: canvas.width + 150 });
+        }
+
+        obstaculos.forEach((obs, idx) => {
+            obs.x -= moto.velocidade;
+            
+            ctx.fillStyle = "rgba(0,0,0,0.4)";
+            ctx.beginPath();
+            ctx.ellipse(obs.x, chaoY + 5, 25, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            let lombadaGrad = ctx.createRadialGradient(obs.x, chaoY - 15, 5, obs.x, chaoY - 15, 25);
+            lombadaGrad.addColorStop(0, "#ffee00");
+            lombadaGrad.addColorStop(1, "#ccaa00");
+            ctx.fillStyle = lombadaGrad;
+            ctx.beginPath();
+            ctx.arc(obs.x, chaoY, 25, Math.PI, 0);
+            ctx.fill();
+            
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 5;
+            for(let s = -15; s <= 15; s += 10) {
+                ctx.beginPath();
+                ctx.moveTo(obs.x + s, chaoY - 25);
+                ctx.lineTo(obs.x + s, chaoY);
+                ctx.stroke();
+            }
+            
+            if (Math.abs(obs.x - moto.posX) < 40 && moto.yOffset === 0) {
+                moto.vy = -12;
+            }
+            
+            if (obs.x < -50) obstaculos.splice(idx, 1);
+        });
+    }
+
+    function desenharMoto(x, y, angulo) {
+        ctx.save();
+        
+        let groundY = canvas.height - 100;
+        let eixoX = moto.posX;
+        let eixoY = (groundY - moto.raioRoda) - moto.yOffset;
+
+        ctx.translate(eixoX, eixoY);
+        ctx.rotate(angulo * Math.PI / 180);
+
+        // Sombra
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = "#000";
+        ctx.beginPath();
+        ctx.ellipse(20, 50, 80, 15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Escapamento
+        let escapamentoGrad = ctx.createLinearGradient(0, -10, 70, 0);
+        escapamentoGrad.addColorStop(0, "#aaa");
+        escapamentoGrad.addColorStop(0.5, "#ddd");
+        escapamentoGrad.addColorStop(1, "#999");
+        ctx.fillStyle = escapamentoGrad;
+        ctx.beginPath();
+        ctx.ellipse(10, -5, 35, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = "#555";
+        ctx.beginPath();
+        ctx.arc(45, -5, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Quadro
+        ctx.fillStyle = "#2a2a2a";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(20, -35);
+        ctx.lineTo(70, -35);
+        ctx.lineTo(50, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = "#1a1a1a";
+        ctx.fillRect(35, -20, 25, 18);
+        ctx.strokeRect(35, -20, 25, 18);
+
+        // Tanque
+        let tanqueGrad = ctx.createLinearGradient(20, -60, 90, -30);
+        tanqueGrad.addColorStop(0, moto.cor);
+        tanqueGrad.addColorStop(0.5, "#ff4444");
+        tanqueGrad.addColorStop(1, moto.corSecundaria);
+        ctx.fillStyle = tanqueGrad;
+        ctx.beginPath();
+        ctx.moveTo(30, -35);
+        ctx.quadraticCurveTo(40, -65, 50, -60);
+        ctx.lineTo(85, -50);
+        ctx.lineTo(70, -35);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
+        ctx.beginPath();
+        ctx.moveTo(35, -50);
+        ctx.quadraticCurveTo(45, -58, 55, -55);
+        ctx.lineTo(50, -45);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rabeta
+        ctx.fillStyle = moto.cor;
+        ctx.beginPath();
+        ctx.moveTo(10, -35);
+        ctx.lineTo(-25, -40);
+        ctx.lineTo(-15, -25);
+        ctx.lineTo(25, -35);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        ctx.fillStyle = "#ff0000";
+        ctx.beginPath();
+        ctx.arc(-20, -38, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Banco
+        ctx.fillStyle = "#0a0a0a";
+        ctx.beginPath();
+        ctx.moveTo(15, -35);
+        ctx.quadraticCurveTo(30, -55, 50, -52);
+        ctx.lineTo(45, -40);
+        ctx.lineTo(10, -30);
+        ctx.closePath();
+        ctx.fill();
+
+        // Garfo
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(80, -45);
+        ctx.lineTo(105, -5);
+        ctx.stroke();
+
+        // Guidão
+        ctx.strokeStyle = "#666";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(65, -50);
+        ctx.lineTo(85, -48);
+        ctx.stroke();
+
+        // Piloto
+        let capaceteGrad = ctx.createRadialGradient(45, -85, 5, 45, -85, 15);
+        capaceteGrad.addColorStop(0, "#1a1a1a");
+        capaceteGrad.addColorStop(1, "#000");
+        ctx.fillStyle = capaceteGrad;
+        ctx.beginPath();
+        ctx.arc(45, -85, 15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = "#1a3a4a";
+        ctx.beginPath();
+        ctx.arc(50, -85, 8, -Math.PI/4, Math.PI/4);
+        ctx.fill();
+
+        ctx.fillStyle = "#2a2a2a";
+        ctx.beginPath();
+        ctx.moveTo(45, -70);
+        ctx.lineTo(38, -40);
+        ctx.lineTo(35, -35);
+        ctx.lineTo(50, -35);
+        ctx.lineTo(48, -70);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.strokeStyle = "#2a2a2a";
+        ctx.lineWidth = 7;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(40, -65);
+        ctx.lineTo(75, -50);
+        ctx.stroke();
+
+        // Roda Dianteira
+        desenharRoda(105, 0);
+
+        ctx.restore();
+
+        // Roda Traseira
+        ctx.save();
+        ctx.translate(eixoX, eixoY);
+        desenharRoda(0, 0);
+        ctx.restore();
+
+        // Faíscas
+        if (angulo < -60 && frame % 3 === 0) {
+            gerarFaisca(eixoX - 25, eixoY - 15);
+        }
+    }
+
+    function desenharRoda(x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(moto.rotacaoRoda);
+        
+        ctx.fillStyle = "#0a0a0a";
+        ctx.beginPath();
+        ctx.arc(0, 0, moto.raioRoda, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 2;
+        for(let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * (moto.raioRoda - 5), Math.sin(a) * (moto.raioRoda - 5));
+            ctx.lineTo(Math.cos(a) * moto.raioRoda, Math.sin(a) * moto.raioRoda);
+            ctx.stroke();
+        }
+        
+        let aroGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, moto.raioRoda - 8);
+        aroGrad.addColorStop(0, "#888");
+        aroGrad.addColorStop(0.5, "#aaa");
+        aroGrad.addColorStop(1, "#666");
+        ctx.fillStyle = aroGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, moto.raioRoda - 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = "#999";
+        ctx.lineWidth = 2;
+        for(let i = 0; i < 8; i++) {
+            let ang = (Math.PI * 2 / 8) * i;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(ang) * (moto.raioRoda - 10), Math.sin(ang) * (moto.raioRoda - 10));
+            ctx.stroke();
+        }
+        
+        ctx.fillStyle = "#555";
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+
+    function gerarFaisca(x, y) {
+        for(let i = 0; i < 5; i++) {
+            moto.faíscas.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.7) * 15 - moto.velocidade * 0.5,
+                vy: (Math.random() - 0.5) * 10,
+                vida: 1.0,
+                tamanho: 2 + Math.random() * 3
+            });
+        }
+    }
+
+    function desenharFaiscas() {
+        moto.faíscas.forEach((f, index) => {
+            ctx.globalAlpha = f.vida;
+            ctx.fillStyle = f.vida > 0.5 ? "#ffaa00" : "#ff6600";
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#ff6600";
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, f.tamanho, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            f.x += f.vx;
+            f.y += f.vy;
+            f.vy += 0.6;
+            f.vida -= 0.04;
+
+            if(f.vida <= 0) moto.faíscas.splice(index, 1);
+        });
+        ctx.globalAlpha = 1.0;
+    }
+
+    // === LOOP PRINCIPAL ===
+
+    function iniciar() {
+        jogoRodando = true;
+        gameOverState = false;
+        distancia = 0;
+        frame = 0;
+        
+        moto.velocidade = 0;
+        moto.rpm = 800;
+        moto.marcha = 0;
+        moto.angulo = 0;
+        moto.velocidadeAngular = 0;
+        moto.posX = 300;
+        moto.yOffset = 0;
+        moto.vy = 0;
+        moto.rotacaoRoda = 0;
+        moto.velocidadeMaxima = 0;
+        moto.faíscas.length = 0;
+        
+        obstaculos.length = 0;
+        
+        document.getElementById("game-over").style.display = "none";
+        document.getElementById("tutorial-txt").style.display = "block";
+        
+        inicializarCenario();
+        iniciarSomMotor();
+        
+        loop();
+    }
+
+    function atualizar() {
+        if (!jogoRodando) return;
+        
+        frame++;
+        distancia += moto.velocidade / 100;
+        
+        if (distancia > 20) {
+            document.getElementById("tutorial-txt").style.display = "none";
+        }
+        
+        atualizarMotor();
+        atualizarGrau();
+        atualizarDirecao();
+        atualizarSomMotor(moto.rpm);
+        
+        // Física vertical
+        moto.yOffset += moto.vy;
+        moto.vy += 0.9;
+        if (moto.yOffset > 0) {
+            moto.yOffset = 0;
+            moto.vy = 0;
+        }
+        
+        // Rotação visual
+        moto.rotacaoRoda += moto.velocidade * 0.08;
+        
+        // HUD
+        document.getElementById('velocidade').innerText = Math.floor(moto.velocidade);
+        document.getElementById('marcha').innerText = moto.marcha === 0 ? 'N' : moto.marcha;
+        document.getElementById('rpm-display').innerText = (moto.rpm / 1000).toFixed(1);
+        document.getElementById('placar').innerText = Math.floor(distancia);
+        
+        let rpmPct = (moto.rpm / moto.rpmMaxima) * 100;
+        document.getElementById('rpm-bar').style.width = rpmPct + '%';
+        
+        if (rpmPct > 95) {
+            document.getElementById('rpm-bar').style.background = 'red';
+        } else if (rpmPct > 80) {
+            document.getElementById('rpm-bar').style.background = 'orange';
+        } else {
+            document.getElementById('rpm-bar').style.background = 'linear-gradient(90deg, #00ff00, yellow, orange)';
+        }
+        
+        if (moto.emGrau) {
+            document.getElementById('modo-display').innerText = '🔥 GRAU';
+        } else {
+            document.getElementById('modo-display').innerText = 'NORMAL';
+        }
+    }
+
+    function loop() {
+        if (!gameOverState) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            atualizar();
+            desenharCenario();
+            desenharMoto(moto.x, moto.y, moto.angulo);
+            desenharFaiscas();
+            requestAnimationFrame(loop);
+        }
+    }
+
+    function crash(motivo) {
+        jogoRodando = false;
+        gameOverState = true;
+        document.getElementById("final-score").innerText = Math.floor(distancia);
+        document.getElementById("max-speed").innerText = Math.floor(moto.velocidadeMaxima);
+        document.getElementById("game-over").querySelector("h1").innerText = motivo || "💥 GAME OVER!";
+        document.getElementById("game-over").style.display = "block";
+    }
+
+    window.reiniciarJogo = function() {
+        iniciar();
+    }
+
+    // === CONTROLES ===
+    
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp") {
+            setaCima = true;
+            e.preventDefault();
+        }
+        if (e.key === "ArrowDown") {
+            setaBaixo = true;
+            e.preventDefault();
+        }
+        if (e.key === "ArrowLeft") {
+            setaEsquerda = true;
+            e.preventDefault();
+        }
+        if (e.key === "ArrowRight") {
+            setaDireita = true;
+            e.preventDefault();
+        }
+        if (e.key === " ") {
+            espacoPressionado = true;
+            e.preventDefault();
+        }
+        if (e.key === "Shift") {
+            if (!shiftPressionado) {
+                trocarMarcha(true);
+                shiftPressionado = true;
+            }
+            e.preventDefault();
+        }
+        if (e.key === "Control") {
+            if (!ctrlPressionado) {
+                trocarMarcha(false);
+                ctrlPressionado = true;
+            }
+            e.preventDefault();
+        }
+    });
+    
+    document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowUp") setaCima = false;
+        if (e.key === "ArrowDown") setaBaixo = false;
+        if (e.key === "ArrowLeft") setaEsquerda = false;
+        if (e.key === "ArrowRight") setaDireita = false;
+        if (e.key === " ") espacoPressionado = false;
+        if (e.key === "Shift") shiftPressionado = false;
+        if (e.key === "Control") ctrlPressionado = false;
+    });
+
+    // Iniciar
+    window.addEventListener('load', () => {
+        setTimeout(iniciar, 100);
+    });
+
+</script>
+</body>
+</html>
